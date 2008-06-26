@@ -40,6 +40,13 @@ module RakeBackup
   
     def verify
     end
+    
+    private
+    
+    def exec(cmd)
+    	`#{cmd}`
+    end
+    
   end
 end
 
@@ -47,7 +54,7 @@ class DpkgBackupAdapter < RakeBackup::Adapter
 	default_name :dpkg
 
 	def perform
-		`dpkg --get-selections > #{to}`
+		exec "dpkg --get-selections > #{to}"
 	end
 	
 	private
@@ -64,7 +71,7 @@ class MySQLBackupAdapter < RakeBackup::Adapter
     cmd  = "mysqldump -u#{username} #{database}"
     cmd += " | gzip" if gzip?
     cmd += " > #{to}"
-    `#{cmd}`
+    exec cmd
   end
   
   private
