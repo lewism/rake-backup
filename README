@@ -1,0 +1,32 @@
+rake-backup
+(c) 2008 Lewis Mackenzie (lewis@magiclamp.co.uk)
+         Jason Frame (jason@magiclamp.co.uk)
+
+rake-backup is, at present, a quick and dirty set of rake tasks for backing up
+numerous server stuff: filesystems, databases, package manifests. Its
+operational goals are to provide a daily backup system for our office network -
+a bunch of physical Mac/Linux boxes and 10 or so virtual servers.
+
+So far, we've got rudimentary support for:
+ * MySQL
+ * List of installed Debian packages
+ * Filesystem backups via duplicity
+
+The near future will see the addition of XFS dumping and PostgreSQL adapters,
+backup verification and Amazon S3 support.
+
+This is pre-alpha software; expect a gem release when we're fit for human
+consumption.
+
+Contributions heartily appreciated.
+
+Quick usage example:
+
+(in Rakefile)
+
+require 'lib/rake-backup'
+
+backup_mysql :username => "root", :gzip => true, :to => "/home/backup/mysql.gz"
+backup_dpkg :to => "/home/backup/installed_packages"
+
+jason@oreo # rake backup_all
