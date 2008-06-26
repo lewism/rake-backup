@@ -28,7 +28,37 @@ module RakeBackup
   			CODE
     	end
      	@default_name
+		end
+  
+    def self.option(*args)
+      @options ||= {}
+      
+      options = args.last.is_a?(Hash) ? args.pop : {}
+      args.each do |option|
+        @options[option.to_sym] ||= {}
+        @options[option.to_sym].merge!(options)
+      end
     end
+    
+    def self.options
+      @options ||= {}
+      self == Adapter ? @options : @options.merge(self.superclass.options)
+    end
+    
+    def self.is_option?(o)
+      options.key?(o.to_sym)
+    end
+    
+    def method_missing(method, *args)
+      if match = /^(.+)\?$/.match(method.to_s)
+        method = match[1].to_sym
+        self.class.is_option?(method) ? (!! @options[method]) : super
+      else
+        self.class.is_option?(method) ? @options[method] : super
+      end
+    end
+
+    option :skip_verify
 
     def initialize(options)
       @options = options
@@ -37,10 +67,23 @@ module RakeBackup
   
     def run
       perform
-      verify unless @options[:skip_verify]
+      verify unless skip_verify?
     end
   
+    class ConfigurationMissing < RuntimeError; end
+    class ConfigurationError < RuntimeError; end
+  
     def check_options
+      self.class.options.each do |option,options|
+        if options[:required] && !@options[option]
+          raise ConfigurationMissing, "Missing configuration option '#{option}'"
+        elsif options[:if] && @option[options[:if]] && !@options[option]
+          raise ConfigurationMissing, "Missing configuration option '#{option}' must be present when '#{options[:if]} is used"
+        end
+        if options[:validate].respond_to?(:call)
+          raise ConfigurationError, "Option '#{option}' is not valid" if !options[:validate].call(@options[option])
+        end
+      end
     end
   
     def perform
@@ -100,3 +143,53 @@ class MySQLBackupAdapter < RakeBackup::Adapter
     @options[:to]
   end
 end
+
+class DuplicityBackupAdapter < RakeBackup::Adapter
+  default_name :duplicity
+  option :source, :required => true, :validate => lambda { |val| File.directory?(val) }
+  option :destination, :required => true
+  
+  option :passphrase, :encrypt_key, :required => true
+  option :sign_key
+  
+  option :includes
+  
+  def perform
+    with_env('PASSPHRASE' => passphrase) do
+      puts "duplicity #{duplicity_options} '#{source}' '#{destination}'"
+    end
+  end
+  
+  def verify
+    with_env('PASSPHRASE' => passphrase) do
+      puts "duplicity verify #{duplicity_options} '#{destination}' '#{source}'"
+    end
+  end
+  
+  def sign_key
+    @options[:sign_key] || encrypt_key
+  end
+  
+  private
+  
+  def duplicity_options
+    o = "--encrypt-key=#{encrypt_key} --sign-key=#{sign_key}"
+    if includes
+      includes.each do |i|
+        if match = /^\+(.+)/.match(i)
+          o << " --include '#{match[1]}'"
+        elsif match = /^\-(.+)/.match(i)
+          o << " --exclude '#{match[1]}'"
+        end
+      end
+    end
+    o
+  end
+  
+  def with_env(env = {}, &block)
+    env.each { |k,v| ENV[k.to_s] = v}
+    yield
+    env.each { |k,_| ENV[k.to_s] = nil}
+  end
+end
+
