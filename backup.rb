@@ -43,6 +43,20 @@ module RakeBackup
   end
 end
 
+class DpkgBackupAdapter < RakeBackup::Adapter
+	default_name :dpkg
+
+	def perform
+		`dpkg --get-selections > #{to}`
+	end
+	
+	private
+	
+	def to
+		@options[:to]
+	end
+end
+
 class MySQLBackupAdapter < RakeBackup::Adapter
   default_name :mysql
   
@@ -70,6 +84,10 @@ class MySQLBackupAdapter < RakeBackup::Adapter
   def to
     @options[:to]
   end
+end
+
+def backup_dpkg(*args)
+	RakeBackup.task(DpkgBackupAdapter, *args)
 end
 
 def backup_mysql(*args)
