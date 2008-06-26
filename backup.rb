@@ -17,9 +17,17 @@ module RakeBackup
   end
   
   class Adapter
-    def self.default_name(the_name = nil)
-      @default_name = the_name unless the_name.nil?
-      @default_name
+  	def self.default_name(the_name = nil)
+    	unless the_name.nil?
+    		raise "Name already defined" if @default_name
+    		@default_name = the_name
+    		Kernel.class_eval <<-CODE
+  				def #{the_name}(*args)
+  					RakeBackup.task(#{self.to_s}, *args)
+  				end
+  			CODE
+    	end
+     	@default_name
     end
 
     def initialize(options)
@@ -51,7 +59,7 @@ module RakeBackup
 end
 
 class DpkgBackupAdapter < RakeBackup::Adapter
-	default_name :dpkg
+	default_name :backup_dpkg
 
 	def perform
 		exec "dpkg --get-selections > #{to}"
@@ -65,7 +73,7 @@ class DpkgBackupAdapter < RakeBackup::Adapter
 end
 
 class MySQLBackupAdapter < RakeBackup::Adapter
-  default_name :mysql
+  default_name :backup_mysql
   
   def perform
     cmd  = "mysqldump -u#{username} #{database}"
@@ -91,12 +99,4 @@ class MySQLBackupAdapter < RakeBackup::Adapter
   def to
     @options[:to]
   end
-end
-
-def backup_dpkg(*args)
-	RakeBackup.task(DpkgBackupAdapter, *args)
-end
-
-def backup_mysql(*args)
-  RakeBackup.task(MySQLBackupAdapter, *args)
 end
