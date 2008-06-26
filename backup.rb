@@ -156,13 +156,13 @@ class DuplicityBackupAdapter < RakeBackup::Adapter
   
   def perform
     with_env('PASSPHRASE' => passphrase) do
-      puts "duplicity #{duplicity_options} '#{source}' '#{destination}'"
+      exec "duplicity #{duplicity_options} '#{source}' '#{destination}'"
     end
   end
   
   def verify
     with_env('PASSPHRASE' => passphrase) do
-      puts "duplicity verify #{duplicity_options} '#{destination}' '#{source}'"
+      exec "duplicity verify #{duplicity_options} '#{destination}' '#{source}'"
     end
   end
   
